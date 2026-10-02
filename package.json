@@ -1,0 +1,12 @@
+{
+    "name": "lorenphp-template",
+    "private": true,
+    "scripts": {
+        "format": "prettier --write .",
+        "format:check": "prettier --check ."
+    },
+    "devDependencies": {
+        "@prettier/plugin-php": "0.25.0",
+        "prettier": "3.9.9"
+    }
+}

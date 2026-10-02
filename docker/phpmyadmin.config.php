@@ -1,0 +1,2 @@
+<?php
+$cfg["ThemeDefault"] = "boodark";

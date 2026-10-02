@@ -1,0 +1,12 @@
+.docker-data
+.lori
+.git
+.idea
+dist
+vendor
+node_modules
+__pycache__
+*.pyc
+*.md
+lori
+lori.cmd

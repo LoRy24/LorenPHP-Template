@@ -1,0 +1,9 @@
+/.docker-data/
+/.lori/
+/dist/
+/vendor/
+/node_modules/
+/.env
+/.idea/
+__pycache__/
+*.pyc

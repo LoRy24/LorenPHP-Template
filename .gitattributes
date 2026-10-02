@@ -1,0 +1,10 @@
+lori text eol=lf
+lori.cmd text eol=crlf
+*.py text eol=lf
+*.php text eol=lf
+*.css text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
+*.Dockerfile text eol=lf
+composer.json text eol=lf
+composer.lock text eol=lf
