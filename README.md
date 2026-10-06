@@ -29,6 +29,22 @@ dev
 
 Ora trovi l'app su <http://127.0.0.1:8080> e phpMyAdmin su <http://127.0.0.1:8081>. `setup-project` crea `.docker-data/` e `.lori/config.json` con credenziali casuali. Sono cartelle locali ignorate da Git. Il primo avvio può richiedere qualche minuto per scaricare e costruire le immagini. All'inizio nessun servizio parte automaticamente: sei tu a scegliere quelli da avviare.
 
+## Il pannello web
+
+Lori avvia anche un pannello locale, disponibile mentre la shell è aperta. Scrivi `panel` per aprirlo nel browser, oppure usa il link mostrato nella schermata iniziale. Il pannello prova la porta `8790`; se è occupata, ne sceglie automaticamente una libera. Puoi usarlo anche con l'app PHP spenta.
+
+Dal pannello puoi:
+
+- Avviare l'app in modalità `dev` o `run`, fermarla e riavviarla.
+- Accendere, fermare e riavviare database e interfacce con i pulsanti delle schede.
+- Aprire il sito, phpMyAdmin, Adminer, Mongo Express e Redis Insight quando sono attivi.
+- Leggere i log, mostrare e copiare le credenziali e cambiare le porte.
+- Scegliere i componenti da avviare automaticamente e fermare l'intero ambiente.
+
+Il pannello e la shell condividono configurazione e operazioni: lo stato si aggiorna ogni pochi secondi. Le operazioni vengono eseguite una alla volta e puoi seguirne l'esito nell'attività recente. Avviando un'interfaccia dal pannello parte anche il database necessario. Al primo utilizzo puoi preparare il progetto direttamente dal pannello con **Prepara progetto**.
+
+Il server ascolta soltanto su `127.0.0.1` e il link di Lori contiene una chiave temporanea per la sessione. Alla riapertura della shell usa il nuovo link o il comando `panel`. Il pannello è uno strumento locale di sviluppo: viene chiuso con Lori e non viene incluso nell'app PHP o nel binario standalone.
+
 ## Scegli cosa parte all'apertura
 
 Scrivi `startup` per aprire un elenco numerato: inserisci i numeri dei componenti desiderati, separati da spazi. Se preferisci un comando diretto:
@@ -52,6 +68,7 @@ Scrivi `help` nella shell per vedere tutti i comandi, oppure `help dev` per una 
 | `startup`                        | Sceglie dall'elenco i componenti da avviare all'apertura.                        |
 | `startup set dev mysql`          | Salva una scelta direttamente; `startup clear` la cancella.                      |
 | `home`                           | Mostra la schermata iniziale e gli URL dei servizi attivi.                       |
+| `panel`                          | Apre il pannello web per gestire servizi, accessi, log e configurazione.         |
 | `start mysql`                    | Avvia una risorsa. Usa `start all` per avviarle tutte.                           |
 | `stop mysql`                     | Ferma una risorsa; `stop app` ferma l'app.                                       |
 | `restart mysql`                  | Ricrea una risorsa già attiva.                                                   |
@@ -121,6 +138,8 @@ La porta predefinita del binario è `8080` ed è definita nel `Caddyfile` alla r
 ```text
 lori, lori.cmd          launcher per macOS/Linux e Windows
 tools/lori_cli.py       shell interattiva
+tools/lori_web.py       server locale del pannello, collegato a Lori
+tools/panel/            HTML, CSS e JavaScript del pannello di gestione
 src/index.php           logica e HTML della pagina iniziale
 src/health.php          endpoint /health
 src/api/                esempio di cartella con URL /api e /api/hello

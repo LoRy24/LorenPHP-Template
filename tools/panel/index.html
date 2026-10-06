@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="it">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="theme-color" content="#101318" />
+        <title>LorenPHP · Control room</title>
+        <link rel="icon" type="image/png" href="/favicon.png" />
+        <link rel="stylesheet" href="/panel.css" />
+        <script src="/panel.js" defer></script>
+    </head>
+    <body>
+        <svg
+            class="icon-library"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
+        >
+            <symbol id="i-grid" viewBox="0 0 24 24">
+                <rect x="3" y="3" width="7" height="7" rx="1.5" />
+                <rect x="14" y="3" width="7" height="7" rx="1.5" />
+                <rect x="3" y="14" width="7" height="7" rx="1.5" />
+                <rect x="14" y="14" width="7" height="7" rx="1.5" />
+            </symbol>
+            <symbol id="i-play" viewBox="0 0 24 24">
+                <path d="m8 5 11 7-11 7Z" />
+            </symbol>
+            <symbol id="i-stop" viewBox="0 0 24 24">
+                <rect x="6" y="6" width="12" height="12" rx="2" />
+            </symbol>
+            <symbol id="i-restart" viewBox="0 0 24 24">
+                <path d="M20 7v5h-5M20 12a8 8 0 1 0-2 5" />
+            </symbol>
+            <symbol id="i-arrow" viewBox="0 0 24 24">
+                <path d="M7 17 17 7M7 7h10v10" />
+            </symbol>
+            <symbol id="i-database" viewBox="0 0 24 24">
+                <ellipse cx="12" cy="5" rx="8" ry="3" />
+                <path d="M4 5v14c0 4 16 4 16 0V5M4 12c0 4 16 4 16 0" />
+            </symbol>
+            <symbol id="i-code" viewBox="0 0 24 24">
+                <path d="m7 7-5 5 5 5m10-10 5 5-5 5m-3-14-4 18" />
+            </symbol>
+            <symbol id="i-terminal" viewBox="0 0 24 24">
+                <rect x="2" y="4" width="20" height="16" rx="3" />
+                <path d="m6 9 3 3-3 3m7 0h5" />
+            </symbol>
+            <symbol id="i-settings" viewBox="0 0 24 24">
+                <path
+                    d="M5 3v5m0 4v9m7-18v10m0 4v4m7-18v2m0 4v12M2 8h6m1 9h6m1-12h6"
+                />
+            </symbol>
+            <symbol id="i-key" viewBox="0 0 24 24">
+                <circle cx="8" cy="9" r="5" />
+                <path d="m12 13 8 8m-5-5 3-3m0 6 3-3" />
+            </symbol>
+            <symbol id="i-copy" viewBox="0 0 24 24">
+                <rect x="8" y="8" width="12" height="13" rx="2" />
+                <path
+                    d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3"
+                />
+            </symbol>
+            <symbol id="i-activity" viewBox="0 0 24 24">
+                <path d="M2 12h5l3-8 4 16 3-8h5" />
+            </symbol>
+            <symbol id="i-window" viewBox="0 0 24 24">
+                <rect x="2" y="3" width="20" height="18" rx="3" />
+                <path d="M2 9h20M6 6h.01M10 6h.01" />
+            </symbol>
+            <symbol id="i-check" viewBox="0 0 24 24">
+                <path d="m5 12 4 4L19 6" />
+            </symbol>
+            <symbol id="i-close" viewBox="0 0 24 24">
+                <path d="m6 6 12 12M6 18 18 6" />
+            </symbol>
+            <symbol id="i-bolt" viewBox="0 0 24 24">
+                <path d="m13 2-9 12h7l-1 8 10-13h-8Z" />
+            </symbol>
+        </svg>
+        <aside class="sidebar">
+            <a class="brand" href="#overview" aria-label="LorenPHP, panoramica"
+                ><span class="brand-mark"
+                    ><svg class="icon"><use href="#i-code" /></svg></span
+                ><span
+                    >loren<span class="brand-light">PHP</span
+                    ><small>CONTROL ROOM</small></span
+                ></a
+            >
+            <div class="workspace-label">WORKSPACE</div>
+            <div class="project-chip">
+                <span class="project-avatar">L</span>
+                <div>
+                    <strong id="project-name">Progetto locale</strong
+                    ><small>Ambiente di sviluppo</small>
+                </div>
+            </div>
+            <nav aria-label="Navigazione principale">
+                <a class="nav-link active" href="#overview"
+                    ><svg class="icon"><use href="#i-grid" /></svg>Panoramica</a
+                >
+                <a class="nav-link" href="#resources"
+                    ><svg class="icon"><use href="#i-database" /></svg>Servizi
+                    <span id="nav-count">8</span></a
+                >
+                <a class="nav-link" href="#activity"
+                    ><svg class="icon"><use href="#i-activity" /></svg
+                    >Attività</a
+                >
+                <button class="nav-link" id="startup-nav">
+                    <svg class="icon"><use href="#i-settings" /></svg>Avvio
+                    automatico
+                </button>
+            </nav>
+            <div class="sidebar-note">
+                <svg class="icon"><use href="#i-terminal" /></svg
+                ><strong>Una shell. Tutto connesso.</strong>
+                <p>Web e terminale condividono lo stesso ambiente Lori.</p>
+                <code>help · panel · quit</code>
+            </div>
+            <div class="session">
+                <span class="status-dot" id="session-dot"></span>
+                <div>
+                    <strong id="session-label">Connessione…</strong
+                    ><small>Solo su questo computer</small>
+                </div>
+            </div>
+        </aside>
+        <div class="main-shell">
+            <header class="topbar">
+                <div>
+                    <span class="breadcrumb">Workspace</span
+                    ><span class="separator">/</span><strong>Panoramica</strong>
+                </div>
+                <div class="topbar-right">
+                    <span class="local-badge">LOCAL</span
+                    ><span id="docker-pill" class="docker-pill"
+                        >Docker · controllo…</span
+                    >
+                </div>
+            </header>
+            <main id="overview">
+                <div class="page-heading">
+                    <div>
+                        <div class="eyebrow">IL TUO SPAZIO DI SVILUPPO</div>
+                        <h1>Tutto pronto a partire.</h1>
+                        <p>Accendi quello che ti serve. Al resto pensa Lori.</p>
+                    </div>
+                    <button id="stop-all" class="button secondary">
+                        <svg class="icon"><use href="#i-stop" /></svg>Ferma
+                        tutto
+                    </button>
+                </div>
+                <div id="notice" class="notice" role="status" hidden></div>
+                <div class="metrics">
+                    <div>
+                        <span class="metric-icon green"
+                            ><svg class="icon"><use href="#i-bolt" /></svg
+                        ></span>
+                        <div>
+                            <strong id="active-count">—</strong
+                            ><span>servizi attivi</span>
+                        </div>
+                    </div>
+                    <div>
+                        <span class="metric-icon violet"
+                            ><svg class="icon"><use href="#i-database" /></svg
+                        ></span>
+                        <div>
+                            <strong>8</strong><span>risorse disponibili</span>
+                        </div>
+                    </div>
+                    <div>
+                        <span class="metric-icon blue"
+                            ><svg class="icon"><use href="#i-settings" /></svg
+                        ></span>
+                        <div>
+                            <strong id="startup-count">—</strong
+                            ><span>all'avvio di Lori</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="workspace-grid">
+                    <section
+                        id="app-card"
+                        class="app-card"
+                        aria-label="Applicazione PHP"
+                    >
+                        <p class="muted">Caricamento dell'applicazione…</p>
+                    </section>
+                    <section class="quick-panel">
+                        <div class="section-kicker">A PORTATA DI CLICK</div>
+                        <h2>
+                            Accessi rapidi
+                            <svg class="icon"><use href="#i-arrow" /></svg>
+                        </h2>
+                        <div id="quick-links"></div>
+                    </section>
+                </div>
+                <section id="resources">
+                    <div class="section-heading">
+                        <div>
+                            <h2>
+                                I tuoi servizi
+                                <span class="count-badge">8</span>
+                            </h2>
+                            <p>Database, cache e strumenti di gestione.</p>
+                        </div>
+                        <div class="filters" aria-label="Filtra servizi">
+                            <button class="selected" data-filter="all">
+                                Tutti</button
+                            ><button data-filter="database">Database</button
+                            ><button data-filter="interface">Interfacce</button>
+                        </div>
+                    </div>
+                    <div
+                        id="service-grid"
+                        class="service-grid"
+                        aria-live="polite"
+                    ></div>
+                </section>
+                <section id="activity" class="activity-panel">
+                    <div class="section-heading">
+                        <div>
+                            <h2>Attività recente</h2>
+                            <p>Quello che succede nel tuo workspace.</p>
+                        </div>
+                        <span class="live-label"
+                            ><span class="status-dot"></span>LIVE</span
+                        >
+                    </div>
+                    <div id="activity-list">
+                        <p class="empty-state">
+                            Le operazioni del pannello compariranno qui.
+                        </p>
+                    </div>
+                </section>
+                <footer>
+                    <span><strong>lorenPHP</strong> · fatto per costruire.</span
+                    ><span
+                        >I dati restano nel progetto. I servizi si fermano
+                        quando chiudi Lori.</span
+                    >
+                </footer>
+            </main>
+        </div>
+        <dialog id="detail-dialog">
+            <div class="dialog-heading">
+                <div>
+                    <div class="eyebrow" id="dialog-eyebrow">WORKSPACE</div>
+                    <h2 id="dialog-title">Dettagli</h2>
+                </div>
+                <button
+                    class="icon-button"
+                    id="close-dialog"
+                    aria-label="Chiudi finestra"
+                >
+                    <svg class="icon"><use href="#i-close" /></svg>
+                </button>
+            </div>
+            <div id="dialog-content"></div>
+        </dialog>
+        <div id="toast" class="toast" role="status" hidden></div>
+    </body>
+</html>

@@ -17,6 +17,7 @@ import socket
 import subprocess
 import sys
 import threading
+import webbrowser
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -67,6 +68,7 @@ HELP = {
     "configure": "Imposta le porte: configure <servizio> <porta>; configure startup sceglie l'avvio.",
     "startup": "Scegli cosa avviare all'apertura: startup oppure startup set <servizi>.",
     "home": "Mostra di nuovo la schermata principale con gli indirizzi attivi.",
+    "panel": "Apre il pannello web locale per gestire app, servizi e accessi.",
     "start": "Avvia un servizio: start <nome> oppure start all.",
     "stop": "Ferma un servizio: stop <nome>, stop app oppure stop all.",
     "restart": "Riavvia un servizio già attivo: restart <nome>.",
@@ -124,9 +126,14 @@ class UI:
 
 
 UIX = UI()
+OUTPUT = threading.local()
 
 
 def say(message: str = "") -> None:
+    writer = getattr(OUTPUT, "writer", None)
+    if writer is not None:
+        writer(message)
+        return
     try:
         print(message, flush=True)
     except BrokenPipeError:
@@ -212,10 +219,11 @@ def compact_run(command: list[str], *, cwd: Path, env: dict | None = None) -> su
     recent: deque[str] = deque(maxlen=35)
     shown: set[str] = set()
     finished = threading.Event()
+    report = getattr(OUTPUT, "writer", say)
 
     def heartbeat() -> None:
         while not finished.wait(30):
-            say(UIX.dim("  Operazione Docker in corso…"))
+            report("  Operazione Docker in corso…")
 
     process = subprocess.Popen(command, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace", bufsize=1)
     threading.Thread(target=heartbeat, daemon=True).start()
@@ -255,6 +263,8 @@ class Console:
         self.config = load_config()
         self.docker_ok, self.docker_message = docker_available()
         self.managed = False
+        self.operation_lock = threading.RLock()
+        self.dashboard = None
 
     def ready(self) -> bool:
         if self.config is None:
@@ -279,11 +289,38 @@ class Console:
         values.update(self.config["credentials"])
         return values
 
-    def compose(self, args: list[str], *, capture: bool = False, compact: bool = False) -> subprocess.CompletedProcess:
+    def compose(self, args: list[str], *, capture: bool = False, compact: bool = False, timeout: float | None = None) -> subprocess.CompletedProcess:
         command = ["docker", "compose", "-p", project_name(), "-f", str(COMPOSE_FILE), "--profile", "app"] + args
         if compact:
             return compact_run(command, cwd=ROOT, env=self.env())
-        return subprocess.run(command, cwd=ROOT, env=self.env(), text=True, capture_output=capture)
+        if not capture and getattr(OUTPUT, "writer", None) is not None:
+            result = subprocess.run(command, cwd=ROOT, env=self.env(), text=True, capture_output=True)
+            if result.stdout:
+                say(result.stdout.strip())
+            if result.stderr:
+                say(result.stderr.strip())
+            return result
+        return subprocess.run(command, cwd=ROOT, env=self.env(), text=True, capture_output=capture, timeout=timeout)
+
+    def start_panel(self) -> None:
+        if self.dashboard is None:
+            from lori_web import Dashboard
+
+            try:
+                self.dashboard = Dashboard(self)
+                self.dashboard.start()
+            except OSError as error:
+                self.dashboard = None
+                say(UIX.warn(f"Pannello web non disponibile: {error}"))
+
+    def panel(self, args: list[str]) -> None:
+        if args:
+            say("Uso: panel")
+            return
+        self.start_panel()
+        if self.dashboard is not None:
+            say(UIX.link(self.dashboard.url))
+            webbrowser.open(self.dashboard.url)
 
     def running(self) -> set[str]:
         if not self.ready():
@@ -346,6 +383,9 @@ class Console:
         say(UIX.title("  ╰────────────────────────────────────────────────────╯"))
         docker_state = UIX.good("● " + self.docker_message) if self.docker_ok else UIX.warn("○ " + self.docker_message)
         say(f"  {docker_state}")
+        if self.dashboard is not None:
+            say("  " + UIX.dim("Pannello web: ") + UIX.link(self.dashboard.url))
+            say("  " + UIX.dim("Scrivi panel per aprirlo nel browser."))
         if self.config is None:
             say("  " + UIX.warn("Progetto da preparare") + UIX.dim("  ·  scrivi setup-project"))
             return
@@ -555,12 +595,12 @@ class Console:
         items = list(RESOURCES) if args[0] == "all" else [args[0]]
         self.start_resources(items)
 
-    def stop(self, args: list[str]) -> None:
+    def stop(self, args: list[str]) -> bool:
         if len(args) != 1 or args[0] not in (*RESOURCES, "app", "all"):
             say("Uso: stop <servizio|app|all>")
-            return
+            return False
         if not self.ready():
-            return
+            return False
         if args[0] == "all":
             items = list(SERVICES)
         elif args[0] == "app":
@@ -570,35 +610,40 @@ class Console:
         result = self.compose(["stop"] + items)
         if result.returncode == 0:
             say(UIX.good(f"Fermati: {', '.join(items)}"))
+        return result.returncode == 0
 
-    def restart(self, args: list[str]) -> None:
+    def restart(self, args: list[str]) -> bool:
         if len(args) != 1 or args[0] not in (*RESOURCES, "app"):
             say("Uso: restart <servizio|app>")
-            return
+            return False
         if not self.ready():
-            return
+            return False
         running = self.running()
         items = [s for s in ("app-dev", "app-run") if s in running] if args[0] == "app" else [args[0]]
         if not items or any(s not in running for s in items):
             say(UIX.warn("Il servizio non è attivo. Usa start, dev o run."))
-            return
+            return False
+        success = True
         for item in items:
             result = self.compose(["up", "-d", "--no-deps", "--force-recreate", item])
             if result.returncode == 0:
                 self.managed = True
                 self.show_access([item])
+            else:
+                success = False
+        return success
 
-    def app(self, mode: str, args: list[str]) -> None:
+    def app(self, mode: str, args: list[str]) -> bool:
         if args:
             say(f"Uso: {mode}")
-            return
+            return False
         if not self.ready():
-            return
+            return False
         target = "app-dev" if mode == "dev" else "app-run"
         other = "app-run" if mode == "dev" else "app-dev"
         if other in self.running():
             if self.compose(["stop", other]).returncode:
-                return
+                return False
         command = ["up", "-d", "--no-deps", "--build"]
         command.append(target)
         say("Avvio FrankenPHP…" if mode == "dev" else "Compilo l'immagine e avvio FrankenPHP…")
@@ -609,6 +654,7 @@ class Console:
             say(UIX.dim("Il server rimane attivo mentre la shell lori è aperta."))
         else:
             say(UIX.bad("Avvio dell'app non riuscito."))
+        return result.returncode == 0
 
     def build_image(self, args: list[str]) -> None:
         if args:
@@ -823,6 +869,7 @@ class Console:
             "configure": self.configure,
             "startup": self.startup,
             "home": self.home,
+            "panel": self.panel,
             "start": self.start,
             "stop": self.stop,
             "restart": self.restart,
@@ -846,10 +893,15 @@ class Console:
             hint = f" Intendevi {matches[0]}?" if matches else " Scrivi help."
             say(UIX.bad(f"Comando sconosciuto: {command}.{hint}"))
             return True
-        action(rest)
+        with self.operation_lock:
+            action(rest)
         return True
 
     def close(self) -> None:
+        if self.dashboard is not None:
+            say(UIX.dim("Chiudo il pannello e attendo eventuali operazioni in corso…"))
+            self.dashboard.close()
+            self.dashboard = None
         if self.config is None:
             return
         self.docker_ok, _ = docker_available()
@@ -865,8 +917,10 @@ class Console:
 
     def loop(self) -> int:
         try:
+            self.start_panel()
             try:
-                self.start_selected()
+                with self.operation_lock:
+                    self.start_selected()
             except KeyboardInterrupt:
                 say(UIX.warn("\nAvvio interrotto. Controlla i servizi con status."))
             self.home([])
