@@ -82,7 +82,7 @@ def extract_template(archive: Path, destination: Path, *, version: str, target: 
         for entry in entries:
             path = PurePosixPath(entry.filename)
             mode = entry.external_attr >> 16
-            if ("\\" in entry.filename or path.is_absolute() or ".." in path.parts
+            if (entry.filename != entry.orig_filename or "\\" in entry.orig_filename or path.is_absolute() or ".." in path.parts
                     or not path.parts or path.parts[0] != ARCHIVE_ROOT
                     or any(":" in part or part.endswith((".", " ")) for part in path.parts)
                     or (stat.S_IFMT(mode) not in (0, stat.S_IFREG, stat.S_IFDIR))):

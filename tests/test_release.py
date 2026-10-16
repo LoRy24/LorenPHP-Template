@@ -143,6 +143,9 @@ class ReleaseTests(unittest.TestCase):
                 archive = self.root / "unsafe.zip"
                 with zipfile.ZipFile(archive, "w") as source:
                     info = zipfile.ZipInfo(name)
+                    # Preserve malformed archive names even on Windows, where the
+                    # constructor normally converts backslashes to forward slashes.
+                    info.filename = name
                     info.external_attr = mode << 16
                     source.writestr(info, "outside")
                 with self.assertRaisesRegex(ValueError, "non sicuro"):
