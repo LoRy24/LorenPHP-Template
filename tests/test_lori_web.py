@@ -64,8 +64,9 @@ class DashboardTests(unittest.TestCase):
             response = urlopen(request, timeout=3)
         except HTTPError as error:
             response = error
-        body = response.read()
-        return response.status, body, response.headers
+        with response:
+            body = response.read()
+            return response.status, body, response.headers
 
     def wait_job(self):
         for _ in range(100):

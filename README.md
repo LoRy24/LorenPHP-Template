@@ -6,7 +6,47 @@ Apri Lori, scrivi i comandi al suo prompt e continua a lavorare. Puoi usare MySQ
 
 ## Da dove cominciare
 
-Servono **Python 3.9+** e **Docker con Compose v2**. Su macOS o Linux, dalla cartella del progetto:
+Scarica dalla pagina [Releases](https://github.com/LoRy24/LorenPHP-Template/releases) lo **ZIP del template** adatto al tuo sistema e alla tua architettura, poi estrailo. Ogni ZIP contiene i sorgenti, il pannello e un eseguibile di Lori con Python incluso: serve soltanto **Docker con Compose v2** per avviare l'ambiente PHP e i servizi.
+
+| Sistema | Architettura     | Suffisso del pacchetto |
+| ------- | ---------------- | ---------------------- |
+| macOS   | Apple Silicon    | `macos-arm64`          |
+| macOS   | Intel            | `macos-x64`            |
+| Linux   | Intel/AMD 64 bit | `linux-x64`            |
+| Linux   | ARM64            | `linux-arm64`          |
+| Windows | Intel/AMD 64 bit | `windows-x64`          |
+
+Gli archivi si chiamano `lorenphp-template-<tag>-<suffisso>.zip`. Le build Linux richiedono glibc 2.35 o successiva (per esempio Ubuntu 22.04+); macOS richiede macOS 14+ per Apple Silicon e macOS 15+ per Intel. Su Windows è supportato Windows 10/11 a 64 bit. I binari non sono firmati con un certificato di distribuzione Apple o Microsoft.
+
+Se preferisci **generare il progetto da console**, scarica l'eseguibile `lorenphp-create-<suffisso>` della stessa release (`.exe` su Windows). Non richiede Git o Python e scarica lo ZIP completo. Per esempio, su un Mac Apple Silicon:
+
+```sh
+chmod +x lorenphp-create-macos-arm64
+./lorenphp-create-macos-arm64 mio-progetto
+cd mio-progetto
+./lori
+```
+
+Su Linux x64:
+
+```sh
+chmod +x lorenphp-create-linux-x64
+./lorenphp-create-linux-x64 mio-progetto
+cd mio-progetto
+./lori
+```
+
+Su Windows, da PowerShell:
+
+```powershell
+.\lorenphp-create-windows-x64.exe mio-progetto
+cd mio-progetto
+.\lori.cmd
+```
+
+La destinazione deve essere una **nuova cartella** e la sua cartella padre deve già esistere. Il generatore usa la versione della release da cui è stato scaricato; puoi scegliere un altro tag con `--version v1.2.3` oppure l'ultima release pubblicata con `--version latest`. Verifica lo SHA-256 usando `SHA256SUMS` prima di estrarre i file, ripristina i permessi di esecuzione e rimuove i download temporanei anche in caso di errore. Per verificare manualmente ZIP ed eseguibili usa `sha256sum -c SHA256SUMS` su Linux, `shasum -a 256 <file>` su macOS oppure `Get-FileHash <file> -Algorithm SHA256` su PowerShell, confrontando il risultato con `SHA256SUMS`.
+
+Se hai invece **clonato il repository**, serve anche **Python 3.9+**: i launcher usano i sorgenti quando l'eseguibile in `.lori-bin/` non è presente. Su macOS o Linux, dalla cartella del progetto:
 
 ```sh
 ./lori
@@ -15,7 +55,7 @@ Servono **Python 3.9+** e **Docker con Compose v2**. Su macOS o Linux, dalla car
 Su Windows, da PowerShell o Prompt dei comandi:
 
 ```bat
-lori.cmd
+.\lori.cmd
 ```
 
 Se aggiungi la cartella del progetto al `PATH`, puoi richiamare il launcher con `lori`. I comandi seguenti si scrivono **dentro la shell di Lori**, senza anteporre `lori`:
@@ -133,6 +173,36 @@ Prettier usa quattro spazi, tramite `.prettierrc.json`, e formatta PHP, CSS, Mar
 
 La porta predefinita del binario è `8080` ed è definita nel `Caddyfile` alla radice. Le estensioni incluse sono elencate in `docker/standalone.Dockerfile`. La build può essere lunga e richiede accesso a GitHub; se incontri un errore `403 rate limit exceeded`, imposta `GITHUB_TOKEN` nell'ambiente prima di aprire Lori e riprova. Il token viene passato a BuildKit come segreto temporaneo.
 
+## Release automatiche del template
+
+Nel repository, `.github/workflows/release.yml` parte quando viene pubblicato un nuovo tag. Il commit del tag deve appartenere alla storia di `main`: un tag su un commit di un altro branch non ancora integrato viene rifiutato. Per esempio, dopo aver integrato le modifiche in `main`:
+
+```sh
+git switch main
+git pull --ff-only
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+I tag possono contenere lettere, numeri, punti, trattini, underscore e `+`, devono iniziare con una lettera o un numero e non possono superare 128 caratteri. Il workflow esegue i test, costruisce Lori e il generatore direttamente sui cinque sistemi/architetture supportati e prova i binari e il pannello senza Python nel `PATH`. Le build usano Python 3.12 e le dipendenze fissate in `tools/release/requirements.txt`.
+
+Solo dopo il successo di tutte le build, il workflow crea una release con note generate da GitHub e allega **cinque ZIP**, **cinque generatori eseguibili** e **`SHA256SUMS`**. La release resta in bozza durante il caricamento e diventa pubblica alla fine. Per riprovare un caricamento fallito puoi rieseguire il workflow: una bozza viene completata, mentre una release già pubblicata richiede un nuovo tag. È sufficiente il `GITHUB_TOKEN` automatico di Actions, con `contents: write` nel solo job di pubblicazione; non servono token personali o altri segreti.
+
+Gli ZIP includono soltanto i file necessari al progetto e i file versionati nelle cartelle applicative; non includono configurazione locale, credenziali, dipendenze scaricate, cronologia Git o workflow di questo repository. Composer e le immagini dei servizi vengono scaricati da Docker al primo utilizzo; Prettier viene preparato al primo comando di formattazione. Questa distribuzione del template è distinta da `build-standalone`, che produce il binario Linux della tua app PHP.
+
+Per verificare tutto localmente nel repository:
+
+```sh
+python3 -m unittest discover -s tests -v
+python3 -m venv .venv-release
+. .venv-release/bin/activate
+python -m pip install -r tools/release/requirements.txt
+python tools/release/build.py --version v1.0.0 --target macos-arm64
+python tools/release/smoke.py dist/release --version v1.0.0 --target macos-arm64
+```
+
+Scegli il target dell'host su cui compili; non è prevista compilazione per un altro sistema operativo. Su Windows attiva l'ambiente con `.venv-release\Scripts\Activate.ps1` e usa `windows-x64`. Gli asset vengono salvati in `dist/release/`. Il workflow `.github/workflows/ci.yml` esegue inoltre i test su Linux, macOS e Windows per push a `main` e pull request verso `main`.
+
 ## Mappa del progetto
 
 ```text
@@ -140,6 +210,9 @@ lori, lori.cmd          launcher per macOS/Linux e Windows
 tools/lori_cli.py       shell interattiva
 tools/lori_web.py       server locale del pannello, collegato a Lori
 tools/panel/            HTML, CSS e JavaScript del pannello di gestione
+tools/create_project.py generatore del progetto (nel repository)
+tools/release/          build, controlli e smoke test delle release (nel repository)
+.lori-bin/             Lori con Python incluso, presente negli ZIP delle release
 src/index.php           logica e HTML della pagina iniziale
 src/health.php          endpoint /health
 src/api/                esempio di cartella con URL /api e /api/hello

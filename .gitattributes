@@ -5,6 +5,7 @@ lori.cmd text eol=crlf
 *.css text eol=lf
 *.json text eol=lf
 *.yaml text eol=lf
+*.yml text eol=lf
 *.Dockerfile text eol=lf
 composer.json text eol=lf
 composer.lock text eol=lf

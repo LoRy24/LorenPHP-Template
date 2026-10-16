@@ -1,10 +1,7 @@
-#!/usr/bin/env python3
-"""Lori: interactive, cross-platform development console."""
-from pathlib import Path
-import sys
-
-sys.path.insert(0, str(Path(__file__).resolve().parent / "tools"))
-from lori_cli import main
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+#!/bin/sh
+# Release archives include Lori's Python runtime; source checkouts use Python 3.
+LORI_DIRECTORY=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd) || exit 1
+if [ -x "$LORI_DIRECTORY/.lori-bin/lori" ]; then
+    exec "$LORI_DIRECTORY/.lori-bin/lori" "$@"
+fi
+exec python3 "$LORI_DIRECTORY/tools/lori_entry.py" "$@"

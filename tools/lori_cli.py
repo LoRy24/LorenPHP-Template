@@ -20,7 +20,7 @@ import threading
 import webbrowser
 
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = (Path(sys.executable) if getattr(sys, "frozen", False) else Path(__file__)).resolve().parent.parent
 STATE = ROOT / ".lori"
 CONFIG = STATE / "config.json"
 DATA = ROOT / ".docker-data"

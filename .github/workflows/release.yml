@@ -1,0 +1,128 @@
+name: Release
+
+on:
+    push:
+        tags: ["*"]
+
+permissions:
+    contents: read
+
+concurrency:
+    group: release-${{ github.ref }}
+    cancel-in-progress: false
+
+jobs:
+    validate:
+        runs-on: ubuntu-22.04
+        timeout-minutes: 10
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+              with:
+                  fetch-depth: 0
+                  persist-credentials: false
+            - name: Check that the tagged commit belongs to main
+              shell: bash
+              run: |
+                  if ! git merge-base --is-ancestor HEAD origin/main; then
+                      echo "::error::The tagged commit must belong to main."
+                      exit 1
+                  fi
+            - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+              with:
+                  python-version: "3.12"
+            - name: Validate tag and run tests
+              env:
+                  RELEASE_TAG: ${{ github.ref_name }}
+              run: |
+                  python -c 'import os, sys; sys.path.insert(0, "tools"); from release_common import validate_version; validate_version(os.environ["RELEASE_TAG"])'
+                  python -m unittest discover -s tests -v
+
+    build:
+        needs: validate
+        runs-on: ${{ matrix.runner }}
+        timeout-minutes: 30
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - runner: ubuntu-22.04
+                      target: linux-x64
+                    - runner: ubuntu-22.04-arm
+                      target: linux-arm64
+                    - runner: macos-15-intel
+                      target: macos-x64
+                    - runner: macos-14
+                      target: macos-arm64
+                    - runner: windows-2022
+                      target: windows-x64
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+              with:
+                  persist-credentials: false
+            - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+              with:
+                  python-version: "3.12"
+                  cache: pip
+                  cache-dependency-path: tools/release/requirements.txt
+            - run: python -m pip install -r tools/release/requirements.txt
+            - run: python -m unittest discover -s tests -v
+            - name: Build native Lori, template ZIP and installer
+              env:
+                  RELEASE_TAG: ${{ github.ref_name }}
+                  RELEASE_TARGET: ${{ matrix.target }}
+                  RELEASE_REPOSITORY: ${{ github.repository }}
+              shell: bash
+              run: python tools/release/build.py --version "$RELEASE_TAG" --target "$RELEASE_TARGET" --repository "$RELEASE_REPOSITORY"
+            - name: Smoke test the packaged template and installer
+              env:
+                  RELEASE_TAG: ${{ github.ref_name }}
+                  RELEASE_TARGET: ${{ matrix.target }}
+                  RELEASE_REPOSITORY: ${{ github.repository }}
+              shell: bash
+              run: python tools/release/smoke.py dist/release --version "$RELEASE_TAG" --target "$RELEASE_TARGET" --repository "$RELEASE_REPOSITORY"
+            - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+              with:
+                  name: release-${{ matrix.target }}
+                  path: dist/release/*
+                  if-no-files-found: error
+                  compression-level: 0
+
+    publish:
+        needs: build
+        runs-on: ubuntu-22.04
+        timeout-minutes: 15
+        permissions:
+            contents: write
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+              with:
+                  persist-credentials: false
+            - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+              with:
+                  python-version: "3.12"
+            - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+              with:
+                  pattern: release-*
+                  merge-multiple: true
+                  path: dist/release
+            - name: Verify all ten assets and generate checksums
+              env:
+                  RELEASE_TAG: ${{ github.ref_name }}
+              run: python tools/release/checksums.py dist/release --version "$RELEASE_TAG"
+            - name: Publish only after every platform succeeds
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  GH_REPO: ${{ github.repository }}
+                  RELEASE_TAG: ${{ github.ref_name }}
+              shell: bash
+              run: |
+                  if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+                      if [ "$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)" != true ]; then
+                          echo "::error::This release is already published; create a new tag."
+                          exit 1
+                      fi
+                  else
+                      gh release create "$RELEASE_TAG" --verify-tag --draft --title "$RELEASE_TAG" --generate-notes
+                  fi
+                  gh release upload "$RELEASE_TAG" dist/release/* --clobber
+                  gh release edit "$RELEASE_TAG" --draft=false

@@ -1,5 +1,8 @@
 .docker-data
 .lori
+.lori-bin
+build
+.venv-release
 .git
 .idea
 dist
